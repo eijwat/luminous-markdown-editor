@@ -17,3 +17,5 @@ English Editor-Icons Version: luminous-md-editor2-en.html
 マークダウンファイルを美しく表示・編集。
 ファイルをドラッグ＆ドロップするか、ボタンからはじめてください。
 日本語エディターアイコンバージョン：luminous-md-editor2-jp.html
+
+Supported by Claude Opus 4.6
