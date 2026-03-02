@@ -754,10 +754,29 @@ body {
 
 /* ─── Print ─── */
 @media print {
-  .toolbar, .statusbar, .editor-panel, .resize-handle, .preview-header { display: none !important; }
-  .preview-panel { border: none !important; }
-  #preview { padding: 0; }
-  .preview-content { max-width: 100%; }
+  .toolbar, .statusbar, .editor-panel, .resize-handle, .preview-header, .format-bar, .drop-overlay, .toast { display: none !important; }
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .main {
+    overflow: visible !important;
+    display: block !important;
+  }
+  .preview-panel {
+    border: none !important;
+    overflow: visible !important;
+    display: block !important;
+    height: auto !important;
+  }
+  #preview {
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .preview-content {
+    max-width: 100% !important;
+  }
 }
 
 /* ─── Responsive ─── */
