@@ -8,7 +8,6 @@
 **Use**
 - **luminous-md-editor.html**
 
-Other 4 are temporary files.
 The other four are temporary files.
 I'll leave them here for reference.
 - luminous-md-editor-en.html
