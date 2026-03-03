@@ -1302,6 +1302,12 @@ function showToast(msg) {
 }
 
 // ─── Init ───
+window.addEventListener('beforeunload', (e) => {
+  if (isDirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 updateStats();
 </script>
 </body>
