@@ -1,7 +1,7 @@
 # Luminous
-**Beautifully render and edit your Markdown files.
+**Beautifully render and edit your Markdown files.**
 
-Drag & drop a file, or get started with the buttons.**
+**Drag & drop a file, or get started with the buttons.**
 
 Enjoy & Use
 - **luminous-md-editor.html**
