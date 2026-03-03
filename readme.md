@@ -3,7 +3,9 @@
 
 **Drag & drop a file, or get started with the buttons.**
 
-Enjoy & Use
+**Enjoy!**
+
+**Use**
 - **luminous-md-editor.html**
 
 Other 4 are temporary files.
