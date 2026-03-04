@@ -22,4 +22,4 @@ I'll leave them here for reference.
 
 HTMLですのでダウンロードしてダブルクリックでつかえます。
 
-***Supported by Claude Opus 4.6***
+***Powered by Claude Opus 4.6***
