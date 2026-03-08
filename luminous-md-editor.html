@@ -917,7 +917,12 @@ body {
 
   <!-- Preview Panel -->
   <div class="preview-panel hidden" id="previewPanel">
-    <div class="preview-header">Preview</div>
+    <div class="preview-header">
+      Preview
+      <button id="syncScrollBtn" class="format-btn" onclick="toggleScrollSync()" title="Scroll sync ON — click to disable" style="margin-left:auto;width:26px;height:24px;opacity:1;transition:opacity 0.2s;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h12a4 4 0 0 0 4-4v-1"/></svg>
+      </button>
+    </div>
     <div id="preview">
       <div class="preview-content" id="previewContent"></div>
     </div>
@@ -1192,7 +1197,20 @@ function updateFilenameDisplay() {
 }
 
 // ─── View Modes ───
+// ─── View Modes ───
 function setView(mode) {
+  const prevView = currentView;
+  let savedScrollRatio = null;
+
+  // プレビューが非表示になる前に、現在のスクロール割合を計算して保持する
+  if (prevView === 'preview' && mode === 'editor') {
+    const previewEl = document.getElementById('preview');
+    const previewPadTop = 40; // プレビューのpadding-top
+    const contentScrollTop = Math.max(0, previewEl.scrollTop - previewPadTop);
+    const contentScrollHeight = Math.max(1, previewEl.scrollHeight - previewEl.clientHeight - previewPadTop);
+    savedScrollRatio = contentScrollTop / contentScrollHeight;
+  }
+
   currentView = mode;
   document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));
 
@@ -1216,8 +1234,69 @@ function setView(mode) {
     document.getElementById('viewPreview').classList.add('active');
     previewPanel.style.flex = 1;
   }
-  setTimeout(() => cmEditor.refresh(), 10);
+  
+  setTimeout(() => {
+    cmEditor.refresh();
+
+    // エディターが再描画された後に、保持しておいた割合を使ってスクロール位置を同期
+    if (savedScrollRatio !== null) {
+      const cmScroll = cmEditor.getScrollInfo();
+      const editorPadTop = 24; // エディターのpadding-top
+      const targetTop = editorPadTop + savedScrollRatio * Math.max(1, cmScroll.height - cmScroll.clientHeight - editorPadTop);
+      cmEditor.scrollTo(null, targetTop);
+    }
+  }, 10);
+  
   render();
+}
+
+// ─── Preview → Editor Scroll Sync ───
+// When the preview is scrolled, after a short pause, the editor follows to the same relative position.
+const previewEl = document.getElementById('preview');
+
+let previewScrollTimer = null;
+let isSyncingFromPreview = false;
+let syncEnabled = true;
+
+function syncEditorToPreview() {
+  if (!syncEnabled || currentView !== 'both') return;
+
+  const previewScrollable = previewEl;
+  // Subtract top padding (40px) so ratio is based on content, not padding
+  const previewPadTop = 40;
+  const contentScrollTop = Math.max(0, previewScrollable.scrollTop - previewPadTop);
+  const contentScrollHeight = Math.max(1,
+    previewScrollable.scrollHeight - previewScrollable.clientHeight - previewPadTop);
+  const scrollRatio = contentScrollTop / contentScrollHeight;
+
+  const cmScroll = cmEditor.getScrollInfo();
+  // CodeMirror padding-top is 24px
+  const editorPadTop = 24;
+  const targetTop = editorPadTop + scrollRatio * Math.max(1, cmScroll.height - cmScroll.clientHeight - editorPadTop);
+
+  isSyncingFromPreview = true;
+  cmEditor.scrollTo(null, targetTop);
+  setTimeout(() => { isSyncingFromPreview = false; }, 200);
+}
+
+previewEl.addEventListener('scroll', () => {
+  if (currentView !== 'both') return;
+  clearTimeout(previewScrollTimer);
+  previewScrollTimer = setTimeout(syncEditorToPreview, 600);
+});
+
+function toggleScrollSync() {
+  syncEnabled = !syncEnabled;
+  const btn = document.getElementById('syncScrollBtn');
+  if (syncEnabled) {
+    btn.style.opacity = '1';
+    btn.title = 'Scroll sync ON — click to disable';
+    showToast('Scroll sync enabled');
+  } else {
+    btn.style.opacity = '0.35';
+    btn.title = 'Scroll sync OFF — click to enable';
+    showToast('Scroll sync disabled');
+  }
 }
 
 // ─── Resize Handle ───
