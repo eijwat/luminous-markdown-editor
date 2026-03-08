@@ -6,7 +6,7 @@
 **Enjoy!**
 
 **Use**
-- **luminous-md-editor.html**
+- **luminous-md-editor.html or luminous-md-editor-s.html**
 
 The other four are temporary files.
 I'll leave them here for reference.
@@ -16,7 +16,7 @@ I'll leave them here for reference.
 - luminous-md-editor2-jp.html
 
 日本語も使えます。
-- **luminous-md-editor.html**
+- **luminous-md-editor.html or luminous-md-editor-s.html**
 
 フォントがClaude風で、とても綺麗に表示できます。
 
