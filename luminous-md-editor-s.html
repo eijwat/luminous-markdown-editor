@@ -1197,7 +1197,20 @@ function updateFilenameDisplay() {
 }
 
 // ─── View Modes ───
+// ─── View Modes ───
 function setView(mode) {
+  const prevView = currentView;
+  let savedScrollRatio = null;
+
+  // プレビューが非表示になる前に、現在のスクロール割合を計算して保持する
+  if (prevView === 'preview' && mode === 'editor') {
+    const previewEl = document.getElementById('preview');
+    const previewPadTop = 40; // プレビューのpadding-top
+    const contentScrollTop = Math.max(0, previewEl.scrollTop - previewPadTop);
+    const contentScrollHeight = Math.max(1, previewEl.scrollHeight - previewEl.clientHeight - previewPadTop);
+    savedScrollRatio = contentScrollTop / contentScrollHeight;
+  }
+
   currentView = mode;
   document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));
 
@@ -1221,7 +1234,19 @@ function setView(mode) {
     document.getElementById('viewPreview').classList.add('active');
     previewPanel.style.flex = 1;
   }
-  setTimeout(() => cmEditor.refresh(), 10);
+  
+  setTimeout(() => {
+    cmEditor.refresh();
+
+    // エディターが再描画された後に、保持しておいた割合を使ってスクロール位置を同期
+    if (savedScrollRatio !== null) {
+      const cmScroll = cmEditor.getScrollInfo();
+      const editorPadTop = 24; // エディターのpadding-top
+      const targetTop = editorPadTop + savedScrollRatio * Math.max(1, cmScroll.height - cmScroll.clientHeight - editorPadTop);
+      cmEditor.scrollTo(null, targetTop);
+    }
+  }, 10);
+  
   render();
 }
 
