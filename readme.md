@@ -9,9 +9,9 @@
 - **luminous-md-editor.html**
 
 
-# ルミナス マークダウン エディター
+# Luminous Markdown Editor
 
-プレビューがとてもきれいなマークダウンエディターです。
+プレビューがとてもきれいで動作の軽いマークダウンエディターです。
 
 日本語も使えます。
 - **luminous-md-editor.html**
