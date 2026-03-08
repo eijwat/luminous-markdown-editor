@@ -22,4 +22,6 @@ I'll leave them here for reference.
 
 HTMLですのでダウンロードしてダブルクリックでつかえます。
 
+sバージョンは、同期スクロールします。
+
 ***Powered by Claude Opus 4.6***
