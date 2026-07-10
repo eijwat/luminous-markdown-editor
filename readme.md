@@ -20,4 +20,4 @@
 
 HTMLですのでダウンロードしてダブルクリックでつかえます。
 
-***Powered by Claude Opus 4.6 and Gemini Pro***
+***Powered by Claude Opus4.6, Gemini Pro, and GPT5.6***
