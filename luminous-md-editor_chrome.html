@@ -626,23 +626,38 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.preview-content .markdown-figure {
-  margin: 1.5em 0;
+.preview-content figure.md-figure {
+  margin: 1.8em 0;
   text-align: center;
 }
 
-.preview-content .markdown-figure img {
+.preview-content figure.md-figure img {
   display: block;
   margin: 0 auto;
 }
 
-.preview-content .markdown-figure figcaption {
-  margin-top: 0.65em;
+.preview-content figure.md-figure figcaption {
+  margin: 0.75em auto 0;
+  max-width: 92%;
   font-family: var(--font-sans);
-  font-size: 0.9em;
-  line-height: 1.6;
+  font-size: 0.88em;
+  line-height: 1.55;
   color: var(--text-secondary);
   text-align: left;
+}
+
+.preview-content figure.md-figure.image-missing img {
+  display: none;
+}
+
+.preview-content figure.md-figure .image-error {
+  padding: 1em;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 0.9em;
+  text-align: center;
 }
 
 .preview-content .task-list-item {
@@ -852,7 +867,7 @@ body {
   <button class="btn btn-icon" onclick="createNew()" title="New">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
   </button>
-  <button class="btn btn-icon" onclick="openFile()" title="Open">
+  <button class="btn btn-icon" onclick="openFile()" title="Open Markdown Folder">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
   </button>
   <button class="btn btn-icon" onclick="saveFile()" title="Save (Ctrl+S)">
@@ -899,11 +914,11 @@ body {
         <polyline points="10 9 9 9 8 9"/>
       </svg>
       <h2>Luminous</h2>
-      <p>Beautifully render and edit your Markdown files.<br>Drag &amp; drop a file, or get started with the buttons below.</p>
+      <p>Beautifully render and edit your Markdown files.<br>Open a Markdown folder so relative images, overwrite saving, and Save As all work in the same directory.</p>
       <div class="welcome-actions">
         <button class="btn" onclick="openFile()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          Open File
+          Open Markdown Folder
         </button>
         <button class="btn btn-accent" onclick="createNew()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -1018,6 +1033,9 @@ body {
 <script>
 // ─── State ───
 let currentFile = null;
+let currentFileHandle = null;
+let currentDirectoryHandle = null;
+let imageObjectUrls = [];
 let isDirty = false;
 let currentView = 'both';
 let editorRatio = 0.5;
@@ -1084,25 +1102,22 @@ renderer.listitem = function(text) {
   return `<li>${t}</li>`;
 };
 
-// Display Markdown image alt text as a visible figure caption.
+// Markdown image alt text is normally hidden as accessibility text. Luminous
+// also displays it as a visible figure caption.
 renderer.image = function(href, title, text) {
   let src = href;
   let caption = text;
   let imageTitle = title;
-
-  // Marked 12 passes a token object; older versions pass separate arguments.
   if (typeof href === 'object' && href !== null) {
     src = href.href || '';
     caption = href.text || '';
     imageTitle = href.title || '';
   }
-
   const safeSrc = escapeHtml(src || '');
   const safeCaption = escapeHtml(caption || '');
   const titleAttr = imageTitle ? ` title="${escapeHtml(imageTitle)}"` : '';
-  const figcaption = safeCaption ? `<figcaption>${safeCaption}</figcaption>` : '';
-
-  return `<figure class="markdown-figure"><img src="${safeSrc}" alt="${safeCaption}"${titleAttr}>${figcaption}</figure>`;
+  const captionHtml = safeCaption ? `<figcaption>${safeCaption}</figcaption>` : '';
+  return `<figure class="md-figure"><img src="${safeSrc}" data-md-src="${safeSrc}" alt="${safeCaption}"${titleAttr}>${captionHtml}</figure>`;
 };
 
 marked.setOptions({ renderer, breaks: true, gfm: true });
@@ -1200,6 +1215,57 @@ async function renderMermaidBlocks() {
   }
 }
 
+// ─── Relative image support ───
+function clearImageObjectUrls() {
+  for (const url of imageObjectUrls) URL.revokeObjectURL(url);
+  imageObjectUrls = [];
+}
+
+function isExternalImagePath(src) {
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(src);
+}
+
+async function getFileFromRelativePath(directoryHandle, relativePath) {
+  const cleanPath = decodeURIComponent(relativePath.split(/[?#]/, 1)[0])
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '');
+  const parts = cleanPath.split('/').filter(part => part && part !== '.');
+  if (!parts.length || parts.includes('..')) throw new Error('Unsupported relative path');
+
+  let dir = directoryHandle;
+  for (const part of parts.slice(0, -1)) {
+    dir = await dir.getDirectoryHandle(part);
+  }
+  const handle = await dir.getFileHandle(parts[parts.length - 1]);
+  return handle.getFile();
+}
+
+async function resolveRelativeImages() {
+  clearImageObjectUrls();
+  const images = previewContent.querySelectorAll('img[data-md-src]');
+  for (const img of images) {
+    const src = img.getAttribute('data-md-src') || '';
+    if (!src || isExternalImagePath(src) || !currentDirectoryHandle) continue;
+    try {
+      const file = await getFileFromRelativePath(currentDirectoryHandle, src);
+      const url = URL.createObjectURL(file);
+      imageObjectUrls.push(url);
+      img.src = url;
+    } catch (e) {
+      const figure = img.closest('figure.md-figure');
+      if (figure) {
+        figure.classList.add('image-missing');
+        if (!figure.querySelector('.image-error')) {
+          const error = document.createElement('div');
+          error.className = 'image-error';
+          error.textContent = `Image not found: ${src}`;
+          figure.insertBefore(error, figure.firstChild);
+        }
+      }
+    }
+  }
+}
+
 // ─── Render ───
 let lastRenderedText = '';
 let rafId = null;
@@ -1214,6 +1280,7 @@ function render() {
     const extracted = extractMath(raw);
     const html = marked.parse(extracted.text);
     previewContent.innerHTML = restoreMath(html, extracted.tokens);
+    resolveRelativeImages();
     renderMermaidBlocks();
     rafId = null;
   });
@@ -1296,6 +1363,7 @@ function insertFormat(type) {
 function createNew() {
   if (isDirty && !confirm('You have unsaved changes. Create a new document?')) return;
   currentFile = null;
+  currentFileHandle = null;
   cmEditor.setValue('');
   cmEditor.clearHistory();
   isDirty = false;
@@ -1307,60 +1375,165 @@ function createNew() {
   showToast('New document created');
 }
 
-function openFile() { fileInput.click(); }
+async function openFile() {
+  if (isDirty && !confirm('You have unsaved changes. Open another document?')) return;
+
+  // Chrome / Edge: select the Markdown file's directory. This grants access to
+  // sibling images and permits true overwrite saving without downloading copies.
+  if ('showDirectoryPicker' in window) {
+    try {
+      const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const markdownFiles = [];
+      for await (const [name, handle] of directoryHandle.entries()) {
+        if (handle.kind === 'file' && /\.(md|markdown|txt|text)$/i.test(name)) {
+          markdownFiles.push({ name, handle });
+        }
+      }
+      markdownFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      if (!markdownFiles.length) {
+        showToast('No Markdown file found in this folder');
+        return;
+      }
+
+      let selected = markdownFiles[0];
+      if (markdownFiles.length > 1) {
+        const menu = markdownFiles.map((item, i) => `${i + 1}. ${item.name}`).join('\n');
+        const answer = prompt(`Choose a Markdown file:\n\n${menu}`, '1');
+        if (answer === null) return;
+        const index = Number.parseInt(answer, 10) - 1;
+        if (!Number.isInteger(index) || !markdownFiles[index]) {
+          showToast('Invalid file number');
+          return;
+        }
+        selected = markdownFiles[index];
+      }
+
+      currentDirectoryHandle = directoryHandle;
+      await loadFileHandle(selected.handle);
+      return;
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error(e);
+        showToast('Folder access failed; using basic file picker');
+      } else {
+        return;
+      }
+    }
+  }
+
+  // Fallback for Firefox/Safari or restricted contexts. Reading works, but
+  // overwrite saving and sibling-image resolution are unavailable.
+  fileInput.click();
+}
 
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  currentDirectoryHandle = null;
+  currentFileHandle = null;
   loadFile(file);
   fileInput.value = '';
 });
 
-function loadFile(file) {
-  if (isDirty && !confirm('You have unsaved changes. Open a new file?')) return;
+async function loadFileHandle(handle) {
+  const file = await handle.getFile();
+  currentFileHandle = handle;
+  loadFile(file, true);
+}
+
+function loadFile(file, fromHandle = false) {
   const reader = new FileReader();
   reader.onload = (e) => {
     currentFile = file.name;
+    if (!fromHandle) currentFileHandle = null;
     cmEditor.setValue(e.target.result);
     cmEditor.clearHistory();
     isDirty = false;
     welcomeScreen.classList.add('hidden');
     setView(currentView);
     updateFilenameDisplay();
+    lastRenderedText = '';
     render();
     showToast(`${file.name} opened`);
   };
   reader.readAsText(file);
 }
 
-function saveFile() {
-  const content = cmEditor.getValue();
-  const filename = currentFile || 'Untitled.md';
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-  isDirty = false;
-  if (!currentFile) currentFile = filename;
-  updateFilenameDisplay();
-  showToast('Saved');
+async function writeToHandle(handle, content) {
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
 }
 
-function saveAsFile() {
-  const newName = prompt('Enter file name:', currentFile || 'Untitled.md');
-  if (!newName) return;
-  const filename = newName.endsWith('.md') ? newName : newName + '.md';
-  const content = cmEditor.getValue();
+function downloadFallback(filename, content) {
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
-  currentFile = filename;
-  isDirty = false;
-  updateFilenameDisplay();
-  showToast(`${filename} saved`);
+}
+
+async function saveFile() {
+  const content = cmEditor.getValue();
+  try {
+    if (currentFileHandle) {
+      await writeToHandle(currentFileHandle, content);
+    } else if (currentDirectoryHandle) {
+      const filename = currentFile || 'Untitled.md';
+      currentFileHandle = await currentDirectoryHandle.getFileHandle(filename, { create: true });
+      await writeToHandle(currentFileHandle, content);
+      currentFile = filename;
+    } else if ('showDirectoryPicker' in window) {
+      await saveAsFile();
+      return;
+    } else {
+      const filename = currentFile || 'Untitled.md';
+      downloadFallback(filename, content);
+      currentFile = filename;
+    }
+    isDirty = false;
+    updateFilenameDisplay();
+    showToast('Saved');
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error(e);
+      showToast('Save failed');
+    }
+  }
+}
+
+async function saveAsFile() {
+  let newName = prompt('Enter file name:', currentFile || 'Untitled.md');
+  if (!newName) return;
+  if (!/\.(md|markdown)$/i.test(newName)) newName += '.md';
+
+  try {
+    if (!currentDirectoryHandle && 'showDirectoryPicker' in window) {
+      currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    }
+
+    const content = cmEditor.getValue();
+    if (currentDirectoryHandle) {
+      const newHandle = await currentDirectoryHandle.getFileHandle(newName, { create: true });
+      await writeToHandle(newHandle, content);
+      currentFileHandle = newHandle;
+    } else {
+      downloadFallback(newName, content);
+      currentFileHandle = null;
+    }
+
+    currentFile = newName;
+    isDirty = false;
+    updateFilenameDisplay();
+    showToast(`${newName} saved`);
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error(e);
+      showToast('Save As failed');
+    }
+  }
 }
 
 function updateFilenameDisplay() {
@@ -1556,6 +1729,7 @@ function showToast(msg) {
 
 // ─── Init ───
 window.addEventListener('beforeunload', (e) => {
+  clearImageObjectUrls();
   if (isDirty) {
     e.preventDefault();
     e.returnValue = '';
