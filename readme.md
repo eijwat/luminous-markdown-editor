@@ -22,7 +22,7 @@ Open the HTML file in Chrome or Edge and click the folder icon.
 
 # Luminous Markdown Editor
 
-プレビューがとてもきれいで動作の軽いマークダウンエディターです。
+プレビューがとてもきれいな動作の軽いマークダウンエディターです。
 
 日本語も使えます。
 - **luminous-md-editor.html**
